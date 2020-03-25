@@ -64,6 +64,10 @@ NOT_NULLABLE_SYNTHESE_FIELDS = ['cd_nom', 'nom_cite', 'date_min']
 INVALID_CSV_NAME = 'invalid'
 
 
+ALLOW_MODIFY_DEFAULT_MAPPING = True
+ALLOW_FIELD_MAPPING = True 
+DEFAULT_FIELD_MAPPING_ID = 1
+
 class GnModuleSchemaConf(Schema):
     LIST_COLUMNS_FRONTEND = fields.List(
         fields.Dict, missing=DEFAULT_LIST_COLUMN)
@@ -83,3 +87,6 @@ class GnModuleSchemaConf(Schema):
     NOT_NULLABLE_SYNTHESE_FIELDS = fields.List(
         fields.String, missing=NOT_NULLABLE_SYNTHESE_FIELDS)
     INVALID_CSV_NAME = fields.String(missing=INVALID_CSV_NAME)
+    ALLOW_MODIFY_DEFAULT_MAPPING = fields.Boolean(missing=ALLOW_MODIFY_DEFAULT_MAPPING)
+    ALLOW_FIELD_MAPPING = fields.Boolean(missing=ALLOW_FIELD_MAPPING)
+    DEFAULT_FIELD_MAPPING_ID = fields.Integer(missing=DEFAULT_FIELD_MAPPING_ID)

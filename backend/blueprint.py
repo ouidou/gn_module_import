@@ -367,6 +367,56 @@ def postMappingName(info_role):
         DB.session.close()
 
 
+@blueprint.route('/updateMappingName', methods=['GET', 'POST'])
+@permissions.check_cruved_scope('C', True, module_code="IMPORT")
+@json_resp
+def updateMappingName(info_role):
+    try:
+        logger.info('Update mapping field name')
+
+        data = request.form.to_dict()
+
+        if data['mappingName'] == '' or data['mappingName'] == 'null':
+            return 'Vous devez donner un nom au mapping', 400
+
+        # check if name already exists
+        names_request = DB.session \
+            .query(TMappings) \
+            .all()
+        names = [name.mapping_label for name in names_request]
+
+        if data['mappingName'] in names:
+            return 'Ce nom de mapping existe déjà', 400
+        
+        DB.session.query(TMappings) \
+                .filter(TMappings.id_mapping == data['mapping_id']) \
+                .update({
+                    TMappings.mapping_label: data['mappingName']
+                })
+    
+        DB.session.commit()
+
+        id_mapping = DB.session.query(TMappings.id_mapping) \
+            .filter(TMappings.mapping_label == data['mappingName']) \
+            .one()[0]
+
+
+        logger.info('-> Mapping field name updated')
+
+        return id_mapping, 200
+
+    except Exception as e:
+        logger.error('*** ERROR WHEN POSTING MAPPING FIELD NAME')
+        logger.exception(e)
+        DB.session.rollback()
+        raise GeonatureImportApiError(
+            message='INTERNAL SERVER ERROR - posting mapping field name : contactez l\'administrateur du site',
+            details=str(e))
+    finally:
+        DB.session.close()
+
+
+
 @blueprint.route('/cancel_import/<import_id>', methods=['GET'])
 @permissions.check_cruved_scope('C', True, module_code="IMPORT")
 @json_resp
@@ -724,6 +774,42 @@ def post_user_file(info_role):
             os.remove(full_path)
         DB.metadata.clear()
         DB.session.close()
+
+@blueprint.route('/updateMappingField/<import_id>/<id_mapping>', methods=['GET', 'POST'])
+@permissions.check_cruved_scope('C', True, module_code="IMPORT")
+@json_resp
+def updateMappingField(info_role, import_id, id_mapping):
+    try:
+        
+        is_running = True
+        
+        data = request.form.to_dict()
+
+        # SAVE MAPPING
+
+        if id_mapping != 'undefined':
+            logger.info('save field mapping')
+            save_field_mapping(data, id_mapping, select_type='selected')
+            logger.info(' -> field mapping saved')
+        else:
+            return {
+                       'message': 'Vous devez créer ou sélectionner un mapping pour le valider'
+                   }, 400
+
+        is_running = False
+        return {
+                   'import_id': import_id,
+                   'id_mapping': id_mapping,
+                   'is_running': is_running
+               }, 200
+
+    except Exception as e:
+        logger.error('*** ERROR IN STEP 2 UPDATE MAPPING')
+        logger.exception(e)
+        DB.session.rollback()
+        raise GeonatureImportApiError(
+            message='INTERNAL SERVER ERROR : Erreur pendant la mise à jour du mapping - contacter l\'administrateur',
+            details=str(e))
 
 
 @blueprint.route('/mapping/<import_id>/<id_mapping>', methods=['GET', 'POST'])
