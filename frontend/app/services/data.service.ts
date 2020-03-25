@@ -59,6 +59,18 @@ export class DataService {
     return this._http.post<any>(urlMapping, fd, HttpUploadOptions);
   }
 
+
+  updateMappingName(value, mappingType, idMapping) {
+    const urlMapping = `${urlApi}/updateMappingName`;
+    let fd = new FormData();
+    for (let key of Object.keys(value)) {
+      fd.append(key, value[key]);
+    }
+    fd.append("mapping_id", idMapping);
+    fd.append("mapping_type", mappingType);
+    return this._http.post<any>(urlMapping, fd, HttpUploadOptions);
+  }
+
   cancelImport(importId: number) {
     return this._http.get<any>(`${urlApi}/cancel_import/${importId}`);
   }
@@ -78,6 +90,15 @@ export class DataService {
       fd.append(key, value[key]);
     }
     fd.append("srid", user_srid);
+    return this._http.post<any>(urlMapping, fd, HttpUploadOptions);
+  }
+
+  updateMappingField(value, importId: number, id_mapping: number) {
+    const urlMapping = `${urlApi}/updateMappingField/${importId}/${id_mapping}`;
+    let fd = new FormData();
+    for (let key of Object.keys(value)) {
+      fd.append(key, value[key]);
+    }
     return this._http.post<any>(urlMapping, fd, HttpUploadOptions);
   }
 
