@@ -107,16 +107,16 @@
                         (click)="ErrorButtonClicked()">
                         {{n_error_lines}} lignes avec erreurs
                     </button>
-                    <button *ngIf="!mappingRes"
-                        class="btn btn-success box-shadow d-flex justify-content-center align-content-between"
-                        [disabled]="syntheseForm.invalid" (click)="onDataCleaning(syntheseForm.value, id_mapping)">
-                        Valider le mapping
-                    </button>
                     <button
                         class="btn btn-success box-shadow d-flex justify-content-center align-content-between"
                         [disabled]="canUpdateMapping()"
                         (click)="updateMappingField(syntheseForm.value, id_mapping)">
                         Mettre à jour le mapping
+                    </button>
+                    <button *ngIf="!mappingRes"
+                        class="btn btn-success box-shadow d-flex justify-content-center align-content-between"
+                        [disabled]="syntheseForm.invalid" (click)="onDataCleaning(syntheseForm.value, id_mapping)">
+                        Valider le mapping
                     </button>
                     <button class="btn btn-success box-shadow d-flex justify-content-center align-content-between"
                         [disabled]="!mappingIsValidate || isFullError" (click)='onNextStep()'>
