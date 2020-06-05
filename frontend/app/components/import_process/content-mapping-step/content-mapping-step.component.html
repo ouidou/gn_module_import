@@ -7,29 +7,32 @@
         <div class="card-body">
 
         <!-- Choix de la liste des nomenclatures -->
-        <form [formGroup]="contentMappingForm" class="was-validated">
+        <form class="was-validated">
                 <fieldset>
-                    <legend class="px-1">
-                        Choix de la liste des nomenclatures
-                    </legend>
-                    <div *ngIf="_cm.userContentMappings" class="form-group">
-                        <select class="form-control form-control-sm" id="contentMappingSelection"
-                            formControlName="contentMapping" #t (change)="onMappingChange(t.value)" >
-                            <option [value]=""></option>
-                            <option *ngFor="let data of _cm.userContentMappings" [value]="data.id_mapping">
-                                {{data.mapping_label}}</option>
-                        </select>
+                    <div *ngIf="cruvedStore?.cruved?.IMPORT.module_objects.MAPPING.cruved.R != '0'">
+                        <legend class="px-1">
+                                Choix du modèle d'imports
+                        </legend>
+                        <div class="form-group">
+                            <select class="form-control form-control-sm" id="contentMappingSelection"
+                                [formControl]="mappingListForm">
+                                <option *ngFor="let data of _cm.userContentMappings" [ngValue]="data">
+                                    {{data.mapping_label}}</option>
+                            </select>
+                        </div>
                     </div>
+
                     <div class="row">
                         <div class="col">
-                            <button
+                            <button             
+                                *ngIf="cruvedStore?.cruved?.IMPORT.module_objects.MAPPING.cruved.C != '0'"
                                 class="btn btn-secondary btn-sm box-shadow d-flex justify-content-center align-content-between mb-3"
-                                (click)="_cm.createMapping(contentMappingForm)">
-                                Nouveau mapping
+                                (click)="_cm.createMapping(newMappingNameForm)">
+                                Nouveau modèle d'import
                             </button>
                         </div>
                         <div class="col" *ngIf='displayCheckBox'>
-                            <input type="checkbox" [(ngModel)]="displayMapped" [ngModelOptions]="{standalone: true}" (change)="updateEnabled($event)">
+                            <input type="checkbox" [(ngModel)]="_cm.displayMapped" [ngModelOptions]="{standalone: true}">
                             Afficher les champs automatiquement associés
                         </div>
                     </div>
@@ -50,9 +53,9 @@
                         </div>
                     </div>
                     <div *ngIf="_cm.newMapping" class="d-flex flex-row justify-content-between form_group" id="newMap">
-                        <input type="text" class="form-control mr-2" value="Inconnu" formControlName="mappingName">
+                        <input type="text" class="form-control mr-2" value="Inconnu" [formControl]="newMappingNameForm">
                         <button class="btn btn-success box-shadow d-flex justify-content-center align-content-between mr-2"
-                            (click)="_cm.saveMappingName(contentMappingForm.value, importId, contentMappingForm)">
+                            (click)="saveMappingName()">
                             ok
                         </button>
                         <button class="btn btn-secondary box-shadow d-flex justify-content-center align-content-between"
@@ -63,19 +66,25 @@
                 </fieldset>
             </form>
 
-
         <form [formGroup]="contentTargetForm" *ngIf="showForm">
             <div *ngFor="let contentMapping of stepData.contentMappingInfo">
-                <div *ngIf="containsEnabled(contentMapping) || displayMapped" class="card field-card">
+                <div [hidden]="(!containsEnabled(contentMapping) && !_cm.displayMapped)" class="card field-card">
                     <div class="field-header" (click)="contentMapping.isCollapsed = !contentMapping.isCollapsed">
                         <div class="card-title mb-0">{{contentMapping.nomenc_name}}</div>
                         <i *ngIf="contentMapping.isCollapsed" class="material-icons">keyboard_arrow_down</i>
                         <i *ngIf="!contentMapping.isCollapsed" class="material-icons">keyboard_arrow_up</i>
                     </div>
                     <div [ngbCollapse]="contentMapping.isCollapsed" class="card-body">
-
+                        <div *ngIf="contentMapping.user_values.values.length > 0 && mappingListForm.value != null" class="alert alert-warning">
+                            <b> Attention: </b> des valeurs du fichiers n'ont trouvé aucune correspondance dans le modèle selectionné:
+                            <ul>
+                                <li *ngFor="let item of contentMapping.user_values.values">
+                                    {{item.value}}
+                                </li>
+                            </ul>
+                        </div>
                         <div *ngFor="let value_def of contentMapping.nomenc_values_def">
-                            <div *ngIf="isEnabled(value_def.id) || displayMapped" class="form-group row">
+                            <div *ngIf="isEnabled(value_def.id) || _cm.displayMapped" class="form-group row">
                                 <label class="col-sm-4 col-form-label">{{value_def.value}} :</label>
                                 <div class="col-sm-8">
                                     <pnx-multiselect 
@@ -144,3 +153,20 @@
     <mat-spinner class="upload-spinner" [color]="color" [diameter]="150" [strokeWidth]="12">
     </mat-spinner>
 </div>
+
+<ng-template #modalConfirm let-modal>
+
+    <div class="modal-header">
+            <h4 class="modal-title" id="modal-basic-title">Enregistrement du modèle</h4>
+            <button type="button" class="close" aria-label="Close" (click)="modal.dismiss('Cross click')">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+                Attention, le modèle a été modifié, voulez-vous sauvegarder ces modifications
+          </div>
+          <div class="modal-footer">
+                <button type="button" class="btn btn-warning" (click)="saveMappingUpdate(false); modal.close()">Ne pas enregistrer </button>
+                <button type="button" class="btn btn-success" (click)="saveMappingUpdate(true); modal.close()">Enregistrer les modifications du modèle d'import</button>
+          </div>
+</ng-template>

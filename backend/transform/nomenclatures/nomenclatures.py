@@ -153,8 +153,6 @@ class NomenclatureTransformer:
             )
             for row in rows_with_err:
                 # ou remplacer par un warning quand la valeur par défaut a été utilisée
-                print("row[1] = " + row[1])
-                print("user_col = " + el["user_col"])
 
                 if current_app.config["IMPORT"][
                     "FILL_MISSING_NOMENCLATURE_WITH_DEFAULT_VALUE"
@@ -203,35 +201,6 @@ class NomenclatureTransformer:
                     query, commit=True, params={"id_rows": tuple(formated_rows_err)}
                 )
 
-                
-                if current_app.config["IMPORT"][
-                    "FILL_MISSING_NOMENCLATURE_WITH_DEFAULT_VALUE"
-                ]: 
-                    nomenc_values = get_nomenc_values(el["mnemonique_type"])
-                    nomenc_values_ids = [get_mnemo(str(val[0])) for val in nomenc_values]
-                    set_user_error(
-                        id_import=id_import,
-                        step="CONTENT_MAPPING",
-                        error_code="INVALID_NOMENCLATURE_WARNING",
-                        col_name=el["user_col"],
-                        id_rows=row.gn_pk,
-                        comment="La valeur '{}' ne correspond à aucune des valeurs [{}] de la nomenclature {} et a ete remplacée par la valeur par défaut '{}'".format(
-                            row[1], ", ".join(nomenc_values_ids),
-                            el["mnemonique_type"], get_mnemo(set_default_value(el["mnemonique_type"]))
-                        )
-                    )
-                else:
-                    set_user_error(
-                        id_import=id_import,
-                        step="CONTENT_MAPPING",
-                        error_code="INVALID_NOMENCLATURE",
-                        col_name=el["user_col"],
-                        id_rows=row.gn_pk,
-                        comment="La valeur '{}' n'existe pas pour la nomenclature {}".format(
-                            row[1], el["mnemonique_type"]
-                        )
-                    )
-
     @checker("Set nomenclature default ids")
     def set_default_nomenclature_ids(self):
         try:
@@ -257,7 +226,7 @@ class NomenclatureTransformer:
             self.selected_columns.get("digital_proof"),
             self.selected_columns.get("non_digital_proof"),
         )
-        if row_with_errors_proof:
+        if row_with_errors_proof and row_with_errors_proof.id_rows:
             set_user_error(
                 id_import=id_import,
                 step="CONTENT_MAPPING",
@@ -272,7 +241,7 @@ class NomenclatureTransformer:
             id_import,
             self.selected_columns.get("id_nomenclature_blurring"),
         )
-        if row_with_errors_blurr:
+        if row_with_errors_blurr and row_with_errors_blurr.id_rows:
             set_user_error(
                 id_import=id_import,
                 step="CONTENT_MAPPING",
@@ -290,7 +259,7 @@ class NomenclatureTransformer:
             ),
             field_ref_biblio=self.selected_columns.get("reference_biblio"),
         )
-        if row_with_errors_bib:
+        if row_with_errors_bib and row_with_errors_bib.id_rows:
             set_user_error(
                 id_import=id_import,
                 step="CONTENT_MAPPING",
@@ -302,53 +271,16 @@ class NomenclatureTransformer:
             )
 
 
-# @checker("Set nomenclature ids from content mapping form")
-# def set_nomenclature_ids(table_name, selected_content, selected_cols):
-#     try:
-#         content_list = []
-#         for id_nomenclature, mapped_values in selected_content.items():
-#             mnemonique_type = get_nomenc_abb(id_nomenclature)
-#             synthese_name = get_synthese_col(mnemonique_type)
-#             if synthese_name in selected_cols:
-#                 d = {
-#                     "id_nomenclature": id_nomenclature,
-#                     "user_values": mapped_values,
-#                     "user_col": selected_cols[synthese_name],
-#                 }
-#                 content_list.append(d)
-
-#         for element in content_list:
-#             for val in element["user_values"]:
-#                 set_nomenclature_id(
-#                     table_name,
-#                     element["user_col"],
-#                     val,
-#                     str(element["id_nomenclature"]),
-#                 )
-#                 DB.session.flush()
-
-#         DB.session.commit()
-
-#     except Exception:
-#         DB.session.rollback()
-#         raise
-
-
 def get_nomenc_info(form_data, schema_name, table_name):
     try:
-
         logger.info("get nomenclature info")
 
         # get list of user-selected synthese column names dealing with SINP nomenclatures
         selected_SINP_nomenc = get_nomenc_abbs(form_data)
-
         front_info = []
-
         for nomenc in selected_SINP_nomenc:
-
             # get nomenclature name and id
             nomenc_info = get_nomenc_details(nomenc)
-
             # get nomenclature values
             nomenc_values = get_nomenc_values(nomenc)
 

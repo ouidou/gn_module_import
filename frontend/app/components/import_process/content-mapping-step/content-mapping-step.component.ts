@@ -1,11 +1,13 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, OnInit, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { FormControl, FormGroup, FormBuilder } from "@angular/forms";
 import { StepsService, Step3Data, Step4Data, Step2Data } from "../steps.service";
 import { DataService } from "../../../services/data.service";
 import { ContentMappingService } from "../../../services/mappings/content-mapping.service";
 import { CommonService } from "@geonature_common/service/common.service";
+import { CruvedStoreService } from "@geonature_common/service/cruved-store.service";
 import { ModuleConfig } from "../../../module.config";
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 
 @Component({
   selector: "content-mapping-step",
@@ -22,7 +24,6 @@ export class ContentMappingStepComponent implements OnInit {
   public columns;
   public spinner: boolean = false;
   contentTargetForm: FormGroup;
-  public contentMappingForm: FormGroup;
   showForm: boolean = false;
   contentMapRes: any;
   stepData: Step3Data;
@@ -35,53 +36,53 @@ export class ContentMappingStepComponent implements OnInit {
   public n_aMapper: number = -1;
   public n_mappes: number = -1;
   public showValidateMappingBtn = true;
-  public displayMapped = false;
   public displayCheckBox = ModuleConfig.DISPLAY_CHECK_BOX_MAPPED_VALUES;
+  public mappingListForm = new FormControl();
+  public newMappingNameForm = new FormControl();
+
+  @ViewChild('modalConfirm') modalConfirm: any;
 
   constructor(
     private stepService: StepsService,
     private _fb: FormBuilder,
     private _ds: DataService,
-    private _cm: ContentMappingService,
+    public _cm: ContentMappingService,
     private _commonService: CommonService,
-    private _router: Router
+    private _router: Router,
+    private _modalService: NgbModal,
+    public cruvedStore: CruvedStoreService
   ) { }
 
   ngOnInit() {
 
-    if (!ModuleConfig.DISPLAY_CHECK_BOX_MAPPED_VALUES)
-      this.displayMapped = ModuleConfig.DISPLAY_MAPPED_VALUES;
+
 
     this.stepData = this.stepService.getStepData(3);
     const step2: Step2Data = this.stepService.getStepData(2);
     this.idFieldMapping = step2.id_field_mapping;
-
-    this.contentMappingForm = this._fb.group({
-      contentMapping: [null],
-      mappingName: [""]
-    });
     this.contentTargetForm = this._fb.group({});
 
     // show list of user mappings
-    this._cm.getMappingNamesList("content", this.stepData.importId);
+    this._cm.getMappingNamesList();
 
     this.getNomencInf();
 
-    // listen to change on contentMappingForm select
+    // listen to change on mappingListForm select
     this.onMappingName();
+
 
     // fill the form
     if (this.stepData.id_content_mapping) {
-      
-      this.contentMappingForm.controls["contentMapping"].setValue(
-        this.stepData.id_content_mapping
+      const formValue = {
+        "id_mapping": this.stepData.id_content_mapping,
+        "cruved": this.stepData.cruvedMapping
+      }
+      this.mappingListForm.setValue(
+        formValue
       );
       this.fillMapping(this.stepData.id_content_mapping);
 
     }
-
-    this.onMappingChange(this.id_mapping);
-
   }
 
   getNomencInf() {
@@ -101,6 +102,35 @@ export class ContentMappingStepComponent implements OnInit {
           // show error message if other server error
           console.log(error);
           this._commonService.regularToaster("error", error.error.message);
+        }
+      }
+    );
+  }
+
+  saveMappingName(value) {
+    // save new mapping in bib_mapping
+    // then select the mapping name in the select
+    let mappingType = "CONTENT";
+    const mappingForm = {
+      'mappingName': this.newMappingNameForm.value
+    }
+    this._ds.postMappingName(mappingForm, mappingType).subscribe(
+      id_mapping => {
+        this._cm.newMapping = false;
+        this._cm.getMappingNamesList(id_mapping, this.mappingListForm);
+        this.newMappingNameForm.reset();
+        //this.enableMapping(targetForm);
+      },
+      error => {
+        if (error.statusText === "Unknown Error") {
+          // show error message if no connexion
+          this._commonService.regularToaster(
+            "error",
+            "ERROR: IMPOSSIBLE TO CONNECT TO SERVER (check your connexion)"
+          );
+        } else {
+          console.log(error);
+          this._commonService.regularToaster("error", error.error);
         }
       }
     );
@@ -160,46 +190,66 @@ export class ContentMappingStepComponent implements OnInit {
   }
 
   updateEnabled(e) {
-    this.onMappingChange(this.id_mapping);
-  }
-
-  onMappingChange(id_mapping) {
-    this._ds.getNomencInfo(this.stepData.importId, this.idFieldMapping).subscribe(
-      res => {
-
-        this.stepData.contentMappingInfo = res["content_mapping_info"];
-        this.generateContentForm();
-        if (id_mapping) {
-          this.disabled = false;
-          this.fillMapping(id_mapping);
-        } else {
-          this.n_mappes = -1;
-          this.disabled = true;
-        }
-
-      }
-    );
+    // this.onMappingChange(this.id_mapping);
+    this._cm.displayMapped = !this._cm.displayMapped;
   }
 
   onMappingName(): void {
-    this.contentMappingForm.get("contentMapping").valueChanges.subscribe(
-      id_mapping => {
-        //this.onMappingChange(id_mapping);
-      },
-      error => {
-        if (error.statusText === "Unknown Error") {
-          // show error message if no connexion
-          this._commonService.regularToaster(
-            "error",
-            "ERROR: IMPOSSIBLE TO CONNECT TO SERVER (check your connexion)"
-          );
+    this.mappingListForm.valueChanges.subscribe(
+      mapping => {
+        if (mapping && mapping.id_mapping) {
+          this.disabled = false;
+          this.fillMapping(mapping.id_mapping);
         } else {
-          console.log(error);
-          this._commonService.regularToaster("error", error.error);
-        }
+          this.n_mappes = -1;
+          this.contentTargetForm.reset();
+          for (let contentMapping of this.stepData.contentMappingInfo) {
+            contentMapping.isCollapsed = false;
+          }
+          this.disabled = true;
+        } // onMappingName(): void {
+        //   this.contentMappingForm.get("contentMapping").valueChanges.subscribe(
+        //     id_mapping => {
+        //       //this.onMappingChange(id_mapping);
+        //     },
+        //     error => {
+        //       if (error.statusText === "Unknown Error") {
+        //         // show error message if no connexion
+        //         this._commonService.regularToaster(
+        //           "error",
+        //           "ERROR: IMPOSSIBLE TO CONNECT TO SERVER (check your connexion)"
+        //         );
+        //       } else {
+        //         console.log(error);
+        //         this._commonService.regularToaster("error", error.error);
+        //       }
+        //     }
+        //   );
+        // }
+
       }
     );
   }
+
+  // onMappingName(): void {
+  //   this.contentMappingForm.get("contentMapping").valueChanges.subscribe(
+  //     id_mapping => {
+  //       //this.onMappingChange(id_mapping);
+  //     },
+  //     error => {
+  //       if (error.statusText === "Unknown Error") {
+  //         // show error message if no connexion
+  //         this._commonService.regularToaster(
+  //           "error",
+  //           "ERROR: IMPOSSIBLE TO CONNECT TO SERVER (check your connexion)"
+  //         );
+  //       } else {
+  //         console.log(error);
+  //         this._commonService.regularToaster("error", error.error);
+  //       }
+  //     }
+  //   );
+  // }
 
   getId(userValue, nomencId) {
     this.stepData.contentMappingInfo.forEach(contentMapping => {
@@ -255,19 +305,20 @@ export class ContentMappingStepComponent implements OnInit {
           if (contentMapping.user_values.values.filter(val => val.value).length > 0)
             console.log(contentMapping.user_values);
         }
+        // at the end set the formgroup as pristine
+        this.contentTargetForm.markAsPristine();
       },
-      error => {
-        if (error.statusText === "Unknown Error") {
-          // show error message if no connexion
-          this._commonService.regularToaster(
-            "error",
-            "ERROR: IMPOSSIBLE TO CONNECT TO SERVER (check your connexion)"
-          );
-        } else {
-          this._commonService.regularToaster("error", error.error.message);
-        }
+    ), error => {
+      if (error.statusText === "Unknown Error") {
+        // show error message if no connexion
+        this._commonService.regularToaster(
+          "error",
+          "ERROR: IMPOSSIBLE TO CONNECT TO SERVER (check your connexion)"
+        );
+      } else {
+        this._commonService.regularToaster("error", error.error.message);
       }
-    );
+    }
   }
 
   onStepBack() {
@@ -276,7 +327,7 @@ export class ContentMappingStepComponent implements OnInit {
 
   onDataChecking() {
     // perform all check on file
-    this.id_mapping = this.contentMappingForm.get("contentMapping").value;
+    this.id_mapping = this.mappingListForm.value.id_mapping;
     this.spinner = true;
     this._ds
       .dataChecker(
@@ -289,8 +340,8 @@ export class ContentMappingStepComponent implements OnInit {
           this.spinner = false;
           //this.contentMapRes = res;
           this._ds.getErrorList(this.stepData.importId).subscribe(err => {
-            this.n_errors = err.errors.filter(error => error.error_level=='ERROR').length;
-            this.n_warnings = err.errors.filter(error => error.error_level=='WARNING').length;
+            this.n_errors = err.errors.filter(error => error.error_level == 'ERROR').length;
+            this.n_warnings = err.errors.filter(error => error.error_level == 'WARNING').length;
             if (this.n_errors == 0) {
               this.disableNextStep = false;
               this.showValidateMappingBtn = false;
@@ -316,16 +367,59 @@ export class ContentMappingStepComponent implements OnInit {
       );
   }
 
-  goToPreview() {
+  createOrUpdateMapping(temporary) {
     this._ds.updateContentMapping(this.id_mapping, this.contentTargetForm.value).subscribe(d => {
       let step4Data: Step4Data = {
         importId: this.stepData.importId
       };
       let step3Data: Step3Data = this.stepData;
       step3Data.id_content_mapping = this.id_mapping;
+      step3Data.temporaryMapping = temporary;
       this.stepService.setStepData(3, step3Data);
       this.stepService.setStepData(4, step4Data);
-      this.onDataChecking()
+      this.onDataChecking();
     })
+  }
+
+  // On close modal: ask if save the mapping or not
+  saveMappingUpdate(saveBoolean) {
+    if (saveBoolean) {
+      this.createOrUpdateMapping(true)
+    } else {
+      // create a temporary mapping
+      const mapping_value = {
+        'mappingName': 'mapping_temporaire_' + Date.now(),
+        'temporary': true
+      }
+      this._ds.postMappingName(mapping_value, 'CONTENT').subscribe(id_mapping => {
+        this.id_mapping = id_mapping;
+        this.createOrUpdateMapping(false)
+      })
+    }
+  }
+
+  goToPreview() {
+    // if the form has not be changed
+
+    if (this.contentTargetForm.pristine) {
+      this.createOrUpdateMapping(false)
+    } else {
+      // if the form mapping has been changed and the user has right to update it
+      if (this.mappingListForm.value.cruved.U) {
+        this._modalService.open(this.modalConfirm);
+      }
+      else {
+        // the user don't has right to update the mapping -> temporary mapping
+        const mapping_value = {
+          'mappingName': 'mapping_temporaire_' + Date.now(),
+          'temporary': true
+        }
+        this._ds.postMappingName(mapping_value, 'CONTENT').subscribe(id_mapping => {
+          this.id_mapping = id_mapping;
+          this.createOrUpdateMapping(true)
+        })
+      }
+    }
+
   }
 }
