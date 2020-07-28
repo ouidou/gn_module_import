@@ -31,7 +31,7 @@ export class DataService {
     return this._http.get<any>(`${urlApi}/datasets`);
   }
 
-  getListDatasets() {
+  getImportDatasets() {
     return this._http.get<any>(urlApi);
   }
 
