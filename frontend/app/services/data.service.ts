@@ -12,6 +12,10 @@ const urlApi = `${AppConfig.API_ENDPOINT}/${ModuleConfig.MODULE_URL}`;
 export class DataService {
   constructor(private _http: HttpClient) {}
 
+  getImportList() {
+    return this._http.get<any>(urlApi);
+  }
+
   postUserFile(value, datasetId, importId, isFileChanged, fileName) {
     const urlStatus = `${urlApi}/uploads`;
     let fd = new FormData();
@@ -29,10 +33,6 @@ export class DataService {
 
   getUserDatasets() {
     return this._http.get<any>(`${urlApi}/datasets`);
-  }
-
-  getImportDatasets() {
-    return this._http.get<any>(urlApi);
   }
 
   getMappings(mapping_type, import_id) {
