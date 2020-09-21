@@ -7,6 +7,7 @@ const HttpUploadOptions = {
   headers: new HttpHeaders({ Accept: "application/json" })
 };
 const urlApi = `${AppConfig.API_ENDPOINT}/${ModuleConfig.MODULE_URL}`;
+const Urltax = `${AppConfig.API_ENDPOINT}`;
 
 @Injectable()
 export class DataService {
@@ -14,6 +15,10 @@ export class DataService {
 
   getImportList() {
     return this._http.get<any>(urlApi);
+  }
+
+  getTaxons(){
+    return this._http.get<any>(`${Urltax}/occtax/releves`);
   }
 
   postUserFile(value, datasetId, importId, isFileChanged, fileName) {
